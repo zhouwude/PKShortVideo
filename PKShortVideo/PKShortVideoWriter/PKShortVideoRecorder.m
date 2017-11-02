@@ -42,8 +42,8 @@ typedef NS_ENUM( NSInteger, PKRecordingStatus ) {
 @property (nonatomic, strong) NSDictionary *videoCompressionSettings;
 @property (nonatomic, strong) NSDictionary *audioCompressionSettings;
 
-@property (nonatomic) CMFormatDescriptionRef outputVideoFormatDescription;
-@property (nonatomic) CMFormatDescriptionRef outputAudioFormatDescription;
+@property (nonatomic, retain) __attribute__((NSObject)) CMFormatDescriptionRef outputVideoFormatDescription;
+@property (nonatomic, retain) __attribute__((NSObject)) CMFormatDescriptionRef outputAudioFormatDescription;
 
 @property (nonatomic, assign) PKRecordingStatus recordingStatus;
 
@@ -118,7 +118,7 @@ typedef NS_ENUM( NSInteger, PKRecordingStatus ) {
     NSString *tempFileName = [NSProcessInfo processInfo].globallyUniqueString;
     self.tempFilePath = [NSTemporaryDirectory() stringByAppendingPathComponent:[tempFileName stringByAppendingPathExtension:@"mp4"]];
     
-    self.assetSession = [[PKShortVideoSession alloc] initWithTempFilePath:self.tempFilePath];
+    self.assetSession = [[PKShortVideoSession alloc] initWithTempFilePath:self.outputFilePath];
     self.assetSession.delegate = self;
     
     [self.assetSession addVideoTrackWithSourceFormatDescription:self.outputVideoFormatDescription settings:self.videoCompressionSettings];
@@ -318,7 +318,7 @@ typedef NS_ENUM( NSInteger, PKRecordingStatus ) {
                 dispatch_async( dispatch_get_main_queue(), ^{
                     @autoreleasepool {
                         [self.delegate recorderDidEndRecording:self];
-                        [self.delegate recorder:self didFinishRecordingToOutputFilePath:self.tempFilePath error:nil];
+                        [self.delegate recorder:self didFinishRecordingToOutputFilePath:self.outputFilePath error:nil];
                     }
                 });
             }
@@ -332,10 +332,10 @@ typedef NS_ENUM( NSInteger, PKRecordingStatus ) {
 - (AVCaptureSession *)setupCaptureSession {
     AVCaptureSession *captureSession = [AVCaptureSession new];
     
-    if (self.isBigSize) {
-        captureSession.sessionPreset = AVCaptureSessionPresetMedium;//360 x 480 小视频一般不会超过此尺寸
+    if (self.outputSize.width > 360 || self.outputSize.width/self.outputSize.height > 4/3) {
+        captureSession.sessionPreset = AVCaptureSessionPreset1280x720;//720 x 1280
     } else {
-        captureSession.sessionPreset = AVCaptureSessionPreset1280x720;//720 x 1280 小视频一般不会超过此尺寸
+        captureSession.sessionPreset = AVCaptureSessionPresetMedium;//360 x 480 小视频一般不会超过此尺寸
     }
     
     if (![self addDefaultCameraInputToCaptureSession:captureSession]){
@@ -413,14 +413,6 @@ typedef NS_ENUM( NSInteger, PKRecordingStatus ) {
         _previewLayer = [AVCaptureVideoPreviewLayer layerWithSession:self.captureSession];
     }
     return _previewLayer;
-}
-
-- (BOOL)isBigSize {
-    if (self.outputSize.width > 360 || self.outputSize.width/self.outputSize.height > 4/3) {
-        return YES;
-    } else {
-        return NO;
-    }
 }
 
 

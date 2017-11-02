@@ -1,39 +1,38 @@
 //
-//  PKMessageViewController.m
+//  PKMessageViewController2.m
 //  PKShortVideo
 //
-//  Created by pepsikirk on 16/1/2.
+//  Created by TYM01 on 16/9/26.
 //  Copyright © 2016年 pepsikirk. All rights reserved.
 //
 
-#import "PKMessageViewController.h"
+#import "PKMessageViewController2.h"
 #import "PKDemoModelData.h"
 #import "PKShortVideo.h"
-#import "PKShortVideoItem.h"
+#import "PKShortVideoItem2.h"
+#import "PKPlayerManager.h"
 
-@interface PKMessageViewController () <UIActionSheetDelegate, PKRecordShortVideoDelegate>
+@interface PKMessageViewController2 () <UIActionSheetDelegate, PKRecordShortVideoDelegate>
 
 @property (strong, nonatomic) PKDemoModelData *demoData;
 
 @end
 
-@implementation PKMessageViewController
-
-#pragma mark - View lifecycle
+@implementation PKMessageViewController2
 
 - (void)viewDidLoad {
     [super viewDidLoad];
     
-    self.title = @"OpenGL";
+    self.title = @"AVPlayer";
     
-    self.navigationItem.rightBarButtonItem = [[UIBarButtonItem alloc] initWithImage:[UIImage jsq_defaultTypingIndicatorImage]
-                                                                              style:UIBarButtonItemStyleDone
-                                                                             target:self
-                                                                             action:@selector(receiveMessagePressed:)];
+    self.navigationItem.rightBarButtonItem = [[UIBarButtonItem alloc] initWithImage:[UIImage jsq_defaultTypingIndicatorImage] style:UIBarButtonItemStyleDone target:self action:@selector(receiveMessagePressed:)];
     
     self.demoData = [[PKDemoModelData alloc] init];
     
     [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(pk_msgVC_didBecomeActiveNotification:) name:UIApplicationDidBecomeActiveNotification object:nil];
+    
+    //创建player，默认8个
+    [[PKPlayerManager sharedManager] creatMessagePlayer];
     
     //获取已经缓存视频
     NSMutableArray *pathArray = [NSMutableArray new];
@@ -51,14 +50,16 @@
         NSDate *second = [secondAttribute objectForKey:NSFileModificationDate];
         return [second compare:first];
     }];
-    
+
     for (NSString *path in sortArray) {
-        [self.demoData addShortVideoMediaMessageWithVideoPath:path playType:PKPlayTypeOpenGL];
+        [self.demoData addShortVideoMediaMessageWithVideoPath:path playType:PKPlayTypeAVPlayer];
     }
-    
     [self finishSendingMessageAnimated:YES];
 }
 
+- (void)dealloc {
+    [[PKPlayerManager sharedManager] removeAllPlayer];
+}
 
 
 
@@ -93,7 +94,7 @@
                                           displayName:kJSQDemoAvatarDisplayNameJobs
                                                  text:@"First received!"];
     }
-        
+    
     NSMutableArray *userIds = [[self.demoData.users allKeys] mutableCopy];
     [userIds removeObject:self.senderId];
     NSString *randomUserId = userIds[arc4random_uniform((int)[userIds count])];
@@ -157,8 +158,8 @@
             audioItemCopy.audioData = nil;
             
             newMediaData = audioItemCopy;
-        } else if ([copyMediaData isKindOfClass:[PKShortVideoItem class]]) {
-            PKShortVideoItem *videoItemCopy = [((PKShortVideoItem *)copyMediaData) copy];
+        } else if ([copyMediaData isKindOfClass:[PKShortVideoItem2 class]]) {
+            PKShortVideoItem2 *videoItemCopy = [((PKShortVideoItem2 *)copyMediaData) copy];
             videoItemCopy.appliesMediaViewMaskAsOutgoing = NO;
             newMediaData = videoItemCopy;
         }
@@ -224,7 +225,7 @@
                 ((JSQAudioMediaItem *)newMediaData).audioData = newMediaAttachmentCopy;
                 [self.collectionView reloadData];
             }
-            else if ([newMediaData isKindOfClass:[PKShortVideoItem class]]) {
+            else if ([newMediaData isKindOfClass:[PKShortVideoItem2 class]]) {
                 
             }
             else {
@@ -362,7 +363,7 @@
      *  Override the defaults in `viewDidLoad`
      */
     JSQMessage *message = [self.demoData.messages objectAtIndex:indexPath.item];
-
+    
     return [self.demoData.avatars objectForKey:message.senderId];
 }
 
@@ -452,8 +453,8 @@
     
     //iOS8以上才有willDisplayCell方法，判断iOS7在这里播放
     if ([UIDevice currentDevice].systemVersion.floatValue <= 8.0) {
-        if ([msg.media isKindOfClass:[PKShortVideoItem class]]) {
-            PKShortVideoItem *item = (PKShortVideoItem *)msg.media;
+        if ([msg.media isKindOfClass:[PKShortVideoItem2 class]]) {
+            PKShortVideoItem2 *item = (PKShortVideoItem2 *)msg.media;
             [item play];
         }
     }
@@ -464,8 +465,8 @@
 //将要结束显示时停止播放
 - (void)collectionView:(UICollectionView *)collectionView didEndDisplayingCell:(UICollectionViewCell *)cell forItemAtIndexPath:(NSIndexPath *)indexPath {
     JSQMessage *message = self.demoData.messages[indexPath.item];
-    if ([message.media isKindOfClass:[PKShortVideoItem class]]) {
-        PKShortVideoItem *item = (PKShortVideoItem *)message.media;
+    if ([message.media isKindOfClass:[PKShortVideoItem2 class]]) {
+        PKShortVideoItem2 *item = (PKShortVideoItem2 *)message.media;
         [item pause];
     }
 }
@@ -473,8 +474,8 @@
 //将要显示时播放
 - (void)collectionView:(UICollectionView *)collectionView willDisplayCell:(UICollectionViewCell *)cell forItemAtIndexPath:(NSIndexPath *)indexPath {
     JSQMessage *message = self.demoData.messages[indexPath.item];
-    if ([message.media isKindOfClass:[PKShortVideoItem class]]) {
-        PKShortVideoItem *item = (PKShortVideoItem *)message.media;
+    if ([message.media isKindOfClass:[PKShortVideoItem2 class]]) {
+        PKShortVideoItem2 *item = (PKShortVideoItem2 *)message.media;
         [item play];
     }
 }
@@ -483,7 +484,7 @@
 
 - (CGFloat)collectionView:(JSQMessagesCollectionView *)collectionView
                    layout:(JSQMessagesCollectionViewFlowLayout *)collectionViewLayout heightForCellTopLabelAtIndexPath:(NSIndexPath *)indexPath {
-
+    
     if (indexPath.item % 3 == 0) {
         return kJSQMessagesCollectionViewCellLabelHeightDefault;
     }
@@ -528,8 +529,8 @@
 - (void)collectionView:(JSQMessagesCollectionView *)collectionView didTapMessageBubbleAtIndexPath:(NSIndexPath *)indexPath {
     JSQMessage *message = self.demoData.messages[indexPath.item];
     //判断媒体消息类型
-    if ([message.media isKindOfClass:[PKShortVideoItem class]]) {
-        PKShortVideoItem *item = (PKShortVideoItem *)message.media;
+    if ([message.media isKindOfClass:[PKShortVideoItem2 class]]) {
+        PKShortVideoItem2 *item = (PKShortVideoItem2 *)message.media;
         //跳转全屏播放小视频界面
         PKFullScreenPlayerViewController *viewController = [[PKFullScreenPlayerViewController alloc] initWithVideoPath:item.videoPath previewImage:[UIImage pk_previewImageWithVideoURL:[NSURL fileURLWithPath:item.videoPath]]];
         [self presentViewController:viewController animated:NO completion:NULL];
@@ -545,7 +546,7 @@
 //视频拍摄完成输出图片
 - (void)didFinishRecordingToOutputFilePath:(NSString *)outputFilePath {
     //自定义的生成小视频聊天对象方法
-    [self.demoData addShortVideoMediaMessageWithVideoPath:outputFilePath playType:PKPlayTypeOpenGL];
+    [self.demoData addShortVideoMediaMessageWithVideoPath:outputFilePath playType:PKPlayTypeAVPlayer];
     //JSQMessagesViewController的完成发送滚动到底端方法
     [self finishSendingMessageAnimated:YES];
 }
@@ -560,12 +561,11 @@
     }
     for (NSIndexPath *indexPath in array) {
         JSQMessage *msg = self.demoData.messages[indexPath.item];
-        if ([msg.media isKindOfClass:[PKShortVideoItem class]]) {
-            PKShortVideoItem *item = (PKShortVideoItem *)msg.media;
+        if ([msg.media isKindOfClass:[PKShortVideoItem2 class]]) {
+            PKShortVideoItem2 *item = (PKShortVideoItem2 *)msg.media;
             [item play];
         }
     }
 }
-
 
 @end
